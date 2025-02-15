@@ -1,0 +1,237 @@
+#include <iostream>
+#include <stdexcept>
+#include <iterator>
+
+template<typename T>
+class Queue {
+private:
+    T* array;
+    int capacity;
+    int front;
+    int rear;
+    int count;
+
+    void resize(int newCapacity) {
+        T* temp = new T[newCapacity];
+        int current = front;
+
+        for (int i = 0; i < count; i++) {
+            temp[i] = array[current];
+            current = (current + 1) % capacity;
+        }
+
+        delete[] array;
+        array = temp;
+        capacity = newCapacity;
+        front = 0;
+        rear = count;
+    }
+
+public:
+    class Iterator {
+    private:
+        T* array;
+        int index;
+        int capacity;
+        int count;
+        int start;
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = T*;
+        using reference = T&;
+
+        Iterator(T* arr, int idx, int cap, int cnt, int st) 
+            : array(arr), index(idx), capacity(cap), count(cnt), start(st) {}
+
+        reference operator*() { return array[index]; }
+        pointer operator->() { return &array[index]; }
+
+        Iterator& operator++() {
+            index = (index + 1) % capacity;
+            return *this;
+        }
+
+        Iterator operator++(int) {
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        friend bool operator==(const Iterator& a, const Iterator& b) {
+            return (a.array == b.array && a.index == b.index) ||
+                   ((a.index - a.start + a.capacity) % a.capacity == a.count && 
+                    (b.index - b.start + b.capacity) % b.capacity == b.count);
+        }
+
+        friend bool operator!=(const Iterator& a, const Iterator& b) {
+            return !(a == b);
+        }
+    };
+
+    explicit Queue(int initialCapacity = 10) 
+        : capacity(initialCapacity), front(0), rear(0), count(0) {
+        if (initialCapacity <= 0) {
+            throw std::invalid_argument("Initial capacity must be positive");
+        }
+        array = new T[capacity];
+    }
+
+    Queue(const Queue& other) 
+        : capacity(other.capacity), front(other.front),
+          rear(other.rear), count(other.count) {
+        array = new T[capacity];
+        for (int i = 0; i < capacity; i++) {
+            array[i] = other.array[i];
+        }
+    }
+
+    Queue& operator=(const Queue& other) {
+        if (this != &other) {
+            delete[] array;
+            capacity = other.capacity;
+            front = other.front;
+            rear = other.rear;
+            count = other.count;
+            array = new T[capacity];
+            for (int i = 0; i < capacity; i++) {
+                array[i] = other.array[i];
+            }
+        }
+        return *this;
+    }
+
+    Queue(Queue&& other) noexcept
+        : array(other.array), capacity(other.capacity),
+          front(other.front), rear(other.rear), count(other.count) {
+        other.array = nullptr;
+        other.capacity = 0;
+        other.front = other.rear = other.count = 0;
+    }
+
+    Queue& operator=(Queue&& other) noexcept {
+        if (this != &other) {
+            delete[] array;
+            array = other.array;
+            capacity = other.capacity;
+            front = other.front;
+            rear = other.rear;
+            count = other.count;
+            other.array = nullptr;
+            other.capacity = 0;
+            other.front = other.rear = other.count = 0;
+        }
+        return *this;
+    }
+
+    ~Queue() {
+        delete[] array;
+    }
+
+    void enqueue(const T& value) {
+        if (count == capacity) {
+            resize(capacity * 2);
+        }
+        array[rear] = value;
+        rear = (rear + 1) % capacity;
+        count++;
+    }
+
+    T dequeue() {
+        if (isEmpty()) {
+            throw std::underflow_error("Queue is empty");
+        }
+        T value = array[front];
+        front = (front + 1) % capacity;
+        count--;
+
+        if (count < capacity / 4 && capacity > 10) {
+            resize(capacity / 2);
+        }
+        return value;
+    }
+
+    T& peek() {
+        if (isEmpty()) {
+            throw std::underflow_error("Queue is empty");
+        }
+        return array[front];
+    }
+
+    const T& peek() const {
+        if (isEmpty()) {
+            throw std::underflow_error("Queue is empty");
+        }
+        return array[front];
+    }
+
+    bool isEmpty() const { return count == 0; }
+    int size() const { return count; }
+    int getCapacity() const { return capacity; }
+
+    void clear() {
+        front = rear = count = 0;
+    }
+
+    Iterator begin() { return Iterator(array, front, capacity, count, front); }
+    Iterator end() { return Iterator(array, rear, capacity, count, front); }
+
+    bool operator==(const Queue& other) const {
+        if (count != other.count) return false;
+        int thisIndex = front;
+        int otherIndex = other.front;
+        for (int i = 0; i < count; i++) {
+            if (array[thisIndex] != other.array[otherIndex]) return false;
+            thisIndex = (thisIndex + 1) % capacity;
+            otherIndex = (otherIndex + 1) % other.capacity;
+        }
+        return true;
+    }
+
+    bool operator!=(const Queue& other) const {
+        return !(*this == other);
+    }
+};
+
+int main() {
+    try {
+        Queue<int> q1(5);
+
+        std::cout << "Enqueuing elements...\n";
+        for (int i = 1; i <= 6; i++) {
+            q1.enqueue(i);
+            std::cout << "Enqueued: " << i << ", Size: " << q1.size() 
+                     << ", Capacity: " << q1.getCapacity() << std::endl;
+        }
+
+        std::cout << "\nQueue contents: ";
+        for (auto it = q1.begin(); it != q1.end(); ++it) {
+            std::cout << *it << " ";
+        }
+        std::cout << std::endl;
+
+        Queue<int> q2 = q1;
+        std::cout << "\nCopied queue size: " << q2.size() << std::endl;
+
+        std::cout << "\nDequeuing elements...\n";
+        while (!q1.isEmpty()) {
+            std::cout << "Dequeued: " << q1.dequeue() << ", Size: " << q1.size() 
+                     << ", Capacity: " << q1.getCapacity() << std::endl;
+        }
+
+        Queue<int> q3 = std::move(q2);
+        std::cout << "\nMoved queue size: " << q3.size() << std::endl;
+
+        try {
+            q1.dequeue();
+        } catch (const std::exception& e) {
+            std::cout << "\nExpected error: " << e.what() << std::endl;
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}

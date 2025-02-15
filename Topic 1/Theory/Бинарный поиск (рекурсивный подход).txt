@@ -1,0 +1,30 @@
+#include <iostream>
+#include <vector>
+
+int binarySearchRecursive(const std::vector<int>& arr, int left, int right, int target) {
+    if (right >= left) {
+        int mid = left + (right - left) / 2; // Избегаем переполнения
+
+        if (arr[mid] == target) { // таже проверка на найденость элемента
+            return mid; 
+	}
+        if (arr[mid] > target) {
+            return binarySearchRecursive(arr, left, mid - 1, target); // Ищем рекурсивно в левой половине массива
+        } else {
+            return binarySearchRecursive(arr, mid + 1, right, target); // Ищем рекурсивно в правой половине массива
+        }
+    }
+    return -1; // Элемент не найден
+}
+
+int main() {
+    std::vector<int> sortedArray = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    int target = 7;
+    int result = binarySearchRecursive(sortedArray, 0, sortedArray.size() - 1, target);
+    if (result != -1) {
+        std::cout << "Элемент найден на индексе: " << result << std::endl;
+    } else {
+        std::cout << "Элемент не найден" << std::endl;
+    }
+    return 0;
+}

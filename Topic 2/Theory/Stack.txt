@@ -1,0 +1,182 @@
+#include <iostream>
+#include <stdexcept>
+#include <iterator>
+
+template<typename T>
+class Stack {
+private:
+    T* array;
+    int top;
+    int capacity;
+
+    void resize(int newCapacity) {
+        T* temp = new T[newCapacity];
+        for (int i = 0; i <= top; i++) {
+            temp[i] = array[i];
+        }
+        delete[] array;
+        array = temp;
+        capacity = newCapacity;
+    }
+
+public:
+    class Iterator {
+    private:
+        T* ptr;
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = T*;
+        using reference = T&;
+
+        Iterator(T* p) : ptr(p) {}
+        reference operator*() { return *ptr; }
+        pointer operator->() { return ptr; }
+        Iterator& operator++() { ++ptr; return *this; }
+        Iterator operator++(int) { Iterator tmp = *this; ++ptr; return tmp; }
+        Iterator& operator--() { --ptr; return *this; }
+        Iterator operator--(int) { Iterator tmp = *this; --ptr; return tmp; }
+
+        friend bool operator==(const Iterator& a, const Iterator& b) { return a.ptr == b.ptr; }
+        friend bool operator!=(const Iterator& a, const Iterator& b) { return a.ptr != b.ptr; }
+    };
+
+    explicit Stack(int initialCapacity = 10) : capacity(initialCapacity), top(-1) {
+        if (initialCapacity <= 0) {
+            throw std::invalid_argument("Initial capacity must be positive");
+        }
+        array = new T[capacity];
+    }
+
+    Stack(const Stack& other) : capacity(other.capacity), top(other.top) {
+        array = new T[capacity];
+        for (int i = 0; i <= top; i++) {
+            array[i] = other.array[i];
+        }
+    }
+
+    Stack& operator=(const Stack& other) {
+        if (this != &other) {
+            delete[] array;
+            capacity = other.capacity;
+            top = other.top;
+            array = new T[capacity];
+            for (int i = 0; i <= top; i++) {
+                array[i] = other.array[i];
+            }
+        }
+        return *this;
+    }
+
+    Stack(Stack&& other) noexcept : array(other.array), capacity(other.capacity), top(other.top) {
+        other.array = nullptr;
+        other.capacity = 0;
+        other.top = -1;
+    }
+
+    Stack& operator=(Stack&& other) noexcept {
+        if (this != &other) {
+            delete[] array;
+            array = other.array;
+            capacity = other.capacity;
+            top = other.top;
+            other.array = nullptr;
+            other.capacity = 0;
+            other.top = -1;
+        }
+        return *this;
+    }
+
+    ~Stack() {
+        delete[] array;
+    }
+
+    void push(const T& value) {
+        if (top == capacity - 1) {
+            resize(capacity * 2);
+        }
+        array[++top] = value;
+    }
+
+    T pop() {
+        if (isEmpty()) {
+            throw std::underflow_error("Stack is empty");
+        }
+        if (top < capacity / 4 && capacity > 10) {
+            resize(capacity / 2);
+        }
+        return array[top--];
+    }
+
+    T& peek() {
+        if (isEmpty()) {
+            throw std::underflow_error("Stack is empty");
+        }
+        return array[top];
+    }
+
+    const T& peek() const {
+        if (isEmpty()) {
+            throw std::underflow_error("Stack is empty");
+        }
+        return array[top];
+    }
+
+    bool isEmpty() const { return top == -1; }
+    int size() const { return top + 1; }
+    int getCapacity() const { return capacity; }
+    void clear() { top = -1; }
+
+    Iterator begin() { return Iterator(array); }
+    Iterator end() { return Iterator(array + top + 1); }
+
+    bool operator==(const Stack& other) const {
+        if (size() != other.size()) return false;
+        for (int i = 0; i <= top; i++) {
+            if (array[i] != other.array[i]) return false;
+        }
+        return true;
+    }
+
+    bool operator!=(const Stack& other) const {
+        return !(*this == other);
+    }
+};
+
+int main() {
+    try {
+        Stack<int> s1(5);
+
+        s1.push(1);
+        s1.push(2);
+        s1.push(3);
+        s1.push(4);
+        s1.push(5);
+        s1.push(6);
+
+        std::cout << "Stack size: " << s1.size() << std::endl;
+        std::cout << "Stack capacity: " << s1.getCapacity() << std::endl;
+
+        Stack<int> s2 = s1;
+        std::cout << "Copied stack size: " << s2.size() << std::endl;
+
+        std::cout << "Stack contents: ";
+        for (auto it = s1.begin(); it != s1.end(); ++it) {
+            std::cout << *it << " ";
+        }
+        std::cout << std::endl;
+
+        while (!s1.isEmpty()) {
+            std::cout << "Popped: " << s1.pop() << std::endl;
+        }
+
+        Stack<int> s3 = std::move(s2);
+        std::cout << "Moved stack size: " << s3.size() << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}

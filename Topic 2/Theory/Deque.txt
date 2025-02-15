@@ -1,0 +1,271 @@
+#include <iostream>
+#include <stdexcept>
+#include <iterator>
+
+template<typename T>
+class Deque {
+private:
+    T* array;
+    int capacity;
+    int front;
+    int rear;
+    int count;
+
+    void resize(int newCapacity) {
+        T* temp = new T[newCapacity];
+        int j = 0;
+
+        for (int i = 0; i < count; i++) {
+            temp[i] = array[(front + i) % capacity];
+        }
+
+        delete[] array;
+        array = temp;
+        capacity = newCapacity;
+        front = 0;
+        rear = count;
+    }
+
+public:
+    class Iterator {
+    private:
+        T* array;
+        int index;
+        int capacity;
+        int count;
+        int start;
+    public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = T*;
+        using reference = T&;
+
+        Iterator(T* arr, int idx, int cap, int cnt, int st) 
+            : array(arr), index(idx), capacity(cap), count(cnt), start(st) {}
+
+        reference operator*() { return array[index]; }
+        pointer operator->() { return &array[index]; }
+
+        Iterator& operator++() {
+            index = (index + 1) % capacity;
+            return *this;
+        }
+
+        Iterator operator++(int) {
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        Iterator& operator--() {
+            index = (index - 1 + capacity) % capacity;
+            return *this;
+        }
+
+        Iterator operator--(int) {
+            Iterator tmp = *this;
+            --(*this);
+            return tmp;
+        }
+
+        friend bool operator==(const Iterator& a, const Iterator& b) {
+            return (a.array == b.array && a.index == b.index) ||
+                   ((a.index - a.start + a.capacity) % a.capacity == a.count && 
+                    (b.index - b.start + b.capacity) % b.capacity == b.count);
+        }
+
+        friend bool operator!=(const Iterator& a, const Iterator& b) {
+            return !(a == b);
+        }
+    };
+
+    explicit Deque(int initialCapacity = 10) 
+        : capacity(initialCapacity), front(0), rear(0), count(0) {
+        if (initialCapacity <= 0) {
+            throw std::invalid_argument("Initial capacity must be positive");
+        }
+        array = new T[capacity];
+    }
+
+    Deque(const Deque& other) 
+        : capacity(other.capacity), front(other.front),
+          rear(other.rear), count(other.count) {
+        array = new T[capacity];
+        for (int i = 0; i < capacity; i++) {
+            array[i] = other.array[i];
+        }
+    }
+
+    Deque& operator=(const Deque& other) {
+        if (this != &other) {
+            delete[] array;
+            capacity = other.capacity;
+            front = other.front;
+            rear = other.rear;
+            count = other.count;
+            array = new T[capacity];
+            for (int i = 0; i < capacity; i++) {
+                array[i] = other.array[i];
+            }
+        }
+        return *this;
+    }
+
+    Deque(Deque&& other) noexcept
+        : array(other.array), capacity(other.capacity),
+          front(other.front), rear(other.rear), count(other.count) {
+        other.array = nullptr;
+        other.capacity = 0;
+        other.front = other.rear = other.count = 0;
+    }
+
+    Deque& operator=(Deque&& other) noexcept {
+        if (this != &other) {
+            delete[] array;
+            array = other.array;
+            capacity = other.capacity;
+            front = other.front;
+            rear = other.rear;
+            count = other.count;
+            other.array = nullptr;
+            other.capacity = 0;
+            other.front = other.rear = other.count = 0;
+        }
+        return *this;
+    }
+
+    ~Deque() {
+        delete[] array;
+    }
+
+    void pushFront(const T& value) {
+        if (count == capacity) {
+            resize(capacity * 2);
+        }
+        front = (front - 1 + capacity) % capacity;
+        array[front] = value;
+        count++;
+    }
+
+    void pushBack(const T& value) {
+        if (count == capacity) {
+            resize(capacity * 2);
+        }
+        array[rear] = value;
+        rear = (rear + 1) % capacity;
+        count++;
+    }
+
+    T popFront() {
+        if (isEmpty()) {
+            throw std::underflow_error("Deque is empty");
+        }
+        T value = array[front];
+        front = (front + 1) % capacity;
+        count--;
+
+        if (count < capacity / 4 && capacity > 10) {
+            resize(capacity / 2);
+        }
+        return value;
+    }
+
+    T popBack() {
+        if (isEmpty()) {
+            throw std::underflow_error("Deque is empty");
+        }
+        rear = (rear - 1 + capacity) % capacity;
+        T value = array[rear];
+        count--;
+
+        if (count < capacity / 4 && capacity > 10) {
+            resize(capacity / 2);
+        }
+        return value;
+    }
+
+    T& getFront() {
+        if (isEmpty()) {
+            throw std::underflow_error("Deque is empty");
+        }
+        return array[front];
+    }
+
+    T& getBack() {
+        if (isEmpty()) {
+            throw std::underflow_error("Deque is empty");
+        }
+        return array[(rear - 1 + capacity) % capacity];
+    }
+
+    bool isEmpty() const { return count == 0; }
+    int size() const { return count; }
+    int getCapacity() const { return capacity; }
+
+    void clear() {
+        front = rear = count = 0;
+    }
+
+    Iterator begin() { return Iterator(array, front, capacity, count, front); }
+    Iterator end() { return Iterator(array, rear, capacity, count, front); }
+
+    bool operator==(const Deque& other) const {
+        if (count != other.count) return false;
+        for (int i = 0; i < count; i++) {
+            if (array[(front + i) % capacity] != 
+                other.array[(other.front + i) % other.capacity]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool operator!=(const Deque& other) const {
+        return !(*this == other);
+    }
+};
+
+int main() {
+    try {
+        Deque<int> deque(5);
+
+        std::cout << "Adding elements to back:\n";
+        for (int i = 1; i <= 3; i++) {
+            deque.pushBack(i);
+            std::cout << "Pushed back: " << i << std::endl;
+        }
+
+        std::cout << "\nAdding elements to front:\n";
+        for (int i = 4; i <= 6; i++) {
+            deque.pushFront(i);
+            std::cout << "Pushed front: " << i << std::endl;
+        }
+
+        std::cout << "\nDeque contents: ";
+        for (auto it = deque.begin(); it != deque.end(); ++it) {
+            std::cout << *it << " ";
+        }
+        std::cout << "\nSize: " << deque.size() 
+                 << ", Capacity: " << deque.getCapacity() << std::endl;
+
+        std::cout << "\nRemoving elements:\n";
+        std::cout << "Popped front: " << deque.popFront() << std::endl;
+        std::cout << "Popped back: " << deque.popBack() << std::endl;
+
+        std::cout << "\nFront element: " << deque.getFront() << std::endl;
+        std::cout << "Back element: " << deque.getBack() << std::endl;
+
+        Deque<int> deque2 = deque;
+        std::cout << "\nCopied deque size: " << deque2.size() << std::endl;
+
+        deque.clear();
+        std::cout << "\nAfter clear, is empty: " << 
+                    (deque.isEmpty() ? "yes" : "no") << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
